@@ -1,389 +1,237 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>姿川ビンゴ</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>BINGO PROJECT</title>
 
-  <!-- ZXing (ブラウザ向けQR読み取りライブラリ) -->
-  <script src="https://unpkg.com/@zxing/browser@0.1.1/umd/index.min.js"></script>
-
-  <style>
-    :root{
-      --bg: #f9f9f9;
-      --card: #ffffff;
-      --accent: #fdd835;
-      --accent-border: #fbc02d;
-      --btn: #007aff;
-      --danger: #e53935;
-    }
-    html,body{
-      height:100%;
-      margin:0;
-      padding:0;
-      background:var(--bg);
-      font-family: "Hiragino Kaku Gothic ProN","ヒラギノ角ゴ ProN W3", "Noto Sans JP",sans-serif;
-      -webkit-font-smoothing:antialiased;
-      -webkit-user-select:none;
-      user-select:none;
-    }
-
-    header{
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      padding:12px 8px 6px 8px;
-    }
-
-    h1{
-      font-size:20px;
-      margin:0;
-      color:#222;
-    }
-
-    main{ display:flex; flex-direction:column; align-items:center; gap:8px; padding-bottom:80px; }
-
-    /* board */
-    #board{
-      display:grid;
-      grid-template-columns: repeat(5, minmax(48px, 1fr));
-      gap:8px;
-      width: min(92vw, 420px);
-      margin-top:6px;
-      box-sizing:border-box;
-    }
-
-    .cell{
-      background:var(--card);
-      border:2px solid #ccc;
-      border-radius:10px;
-      height: min(18vw, 72px);
-      min-height:48px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:700;
-      color:#111;
-      font-size: clamp(14px, 3.3vw, 18px);
-      transition: transform .18s ease, box-shadow .18s ease;
-      box-sizing:border-box;
-      touch-action: manipulation;
-    }
-
-    .cell.marked{
-      background: var(--accent);
-      border-color: var(--accent-border);
-      color:#111;
-      box-shadow: 0 0 16px rgba(255,200,0,0.8);
-      transform: scale(1.05);
-      animation: shine 0.6s ease;
-    }
-
-    @keyframes shine{
-      0%{ transform: scale(1.18); filter:brightness(1.6); opacity:0.95;}
-      100%{ transform: scale(1); filter:brightness(1); opacity:1;}
-    }
-
-    /* message (BINGO etc) */
-    #status{
-      position: fixed;
-      top: 38%;
-      left: 50%;
-      transform: translate(-50%,-50%);
-      background: rgba(255,255,255,0.95);
-      padding: 10px 18px;
-      border-radius: 10px;
-      font-weight: 900;
-      font-size: 28px;
-      color:#d81b60;
-      display:none;
-      z-index: 1200;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-      text-align:center;
-    }
-
-    /* scan button fixed bottom */
-    #scanBtn{
-      position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 12px;
-      width: calc(100% - 28px);
-      max-width: 420px;
-      height: 56px;
-      border-radius: 12px;
-      border: none;
-      background: var(--btn);
-      color: #fff;
-      font-size: 18px;
-      font-weight:700;
-      z-index: 1100;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-      touch-action: manipulation;
-    }
-
-    /* camera full screen modal */
-    #cameraModal{
-      position: fixed;
-      inset: 0;
-      background: #000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      flex-direction: column;
-    }
-
-    #cameraModal video{
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transform: scaleX(-1); /* mirror off; will flip in code if necessary */
-    }
-
-    #closeCamera{
-      position: absolute;
-      top: 18px;
-      right: 14px;
-      z-index:2100;
-      background: rgba(0,0,0,0.45);
-      color: #fff;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 18px;
-    }
-
-    /* responsive spacing */
-    .spacer{ height:14px; }
-
-    @media (min-width:700px){
-      #scanBtn{ bottom: 18px; height:62px; }
-      .cell{ min-height:72px; }
-    }
-  </style>
+<style>
+body {
+    font-family: sans-serif;
+    background: #111;
+    color: #fff;
+    margin: 0;
+    text-align: center;
+}
+#bingo-board {
+    display: grid;
+    grid-template-columns: repeat(5, 60px);
+    grid-gap: 6px;
+    margin: 20px auto;
+    width: 320px;
+}
+.cell {
+    width: 60px;
+    height: 60px;
+    background: #333;
+    border-radius: 10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    font-weight:bold;
+    transition: 0.4s;
+}
+.glow {
+    background: #0f0 !important;
+    box-shadow: 0 0 15px #0f0;
+}
+#scanBtn {
+    background: #2196f3;
+    border:none;
+    padding:14px 25px;
+    border-radius:10px;
+    font-size:20px;
+    margin-top: 15px;
+    color:#fff;
+}
+#camera-view {
+    display:none;
+    position:fixed;
+    top:0;left:0;width:100%;height:100%;
+    background:#000;
+    z-index:9999;
+    justify-content:center;
+    align-items:center;
+}
+#video {
+    width:100vw;
+    height:100vh;
+    object-fit:cover;
+}
+#closeCam {
+    position: fixed;
+    top:20px;right:20px;
+    background:#f00;
+    border:none;
+    font-size:18px;
+    padding:10px 14px;
+    border-radius:8px;
+    color:#fff;
+}
+.message {
+    font-size: 40px;
+    font-weight:bold;
+    position:fixed;
+    top:40%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    background:rgba(0,0,0,0.7);
+    padding:20px 30px;
+    border-radius:15px;
+    display:none;
+    z-index:20000;
+}
+</style>
 </head>
+
 <body>
-  <header><h1>姿川ビンゴ</h1></header>
 
-  <main>
-    <div id="board" aria-hidden="false"></div>
-    <div class="spacer"></div>
-    <div id="status" role="status" aria-live="polite"></div>
-  </main>
+<h2>BINGO</h2>
 
-  <button id="scanBtn" aria-label="QRコードを読み取る">📷 QRコードを読み取る</button>
+<button id="scanBtn">QR読み取り</button>
 
-  <!-- カメラ全画面 -->
-  <div id="cameraModal" aria-hidden="true">
-    <video id="video" playsinline autoplay></video>
-    <button id="closeCamera" aria-label="カメラを閉じる">閉じる</button>
-  </div>
+<div id="bingo-board"></div>
+
+<!-- 盤面戻り後の表示メッセージ -->
+<div id="msg" class="message"></div>
+
+<!-- カメラ画面 -->
+<div id="camera-view">
+    <video id="video" autoplay playsinline></video>
+    <button id="closeCam">閉じる</button>
+</div>
+
+<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
 
 <script>
-/*
-  完全一体型コード
-  - QRデータ: B1 ... B25（中央B13はFREEでQRなし）
-  - 動作: ボタン押す → 全画面カメラ → QR検出 → カメラ停止→盤面表示→マス点灯
-  - ライブラリ: @zxing/browser (CDN読み込み)
-*/
-
-(async ()=>{
-
-// DOM
-const boardEl = document.getElementById('board');
-const scanBtn = document.getElementById('scanBtn');
-const cameraModal = document.getElementById('cameraModal');
-const video = document.getElementById('video');
-const closeCamera = document.getElementById('closeCamera');
-const statusEl = document.getElementById('status');
-
-const ROWS = 5;
-const COLS = 5;
-const TOTAL = ROWS * COLS;
-const FREE_INDEX = 12; // 0-based center
-let cells = []; // {el, value, marked}
-let usedLineKeys = new Set();
-
-let codeReader = null;
-let currentStream = null;
-
-// helper show status
-function showStatus(text, persistent=false){
-  statusEl.textContent = text;
-  statusEl.style.display = 'block';
-  if (!persistent) {
-    setTimeout(()=> {
-      statusEl.style.display = 'none';
-      statusEl.textContent = '';
-    }, 2000);
-  }
+// ✅マス一覧（FreeはB13）
+const labels = [];
+for (let i=1;i<=25;i++){
+    if(i===13) labels.push("FREE");
+    else labels.push("B"+i);
 }
 
-// build board
-function buildBoard(){
-  boardEl.innerHTML = '';
-  cells = [];
-  let n = 1;
-  for (let i=0;i<TOTAL;i++){
-    const div = document.createElement('div');
-    div.className = 'cell';
-    if (i === FREE_INDEX){
-      div.textContent = 'FREE';
-      div.classList.add('marked');
-      cells.push({el:div, value:'FREE', marked:true});
-    } else {
-      const code = `B${n}`;
-      div.textContent = code;
-      cells.push({el:div, value:code, marked:false});
-      n++;
+const board = document.getElementById("bingo-board");
+
+// ✅盤面作成
+labels.forEach(lbl=>{
+    const div = document.createElement("div");
+    div.className="cell";
+    div.textContent = lbl==="FREE" ? "" : lbl.replace("B","");
+    div.id = lbl;
+    board.appendChild(div);
+});
+
+// ✅FREEマスは最初から光る
+document.getElementById("FREE").classList.add("glow");
+
+const video = document.getElementById("video");
+const camView = document.getElementById("camera-view");
+const msg = document.getElementById("msg");
+
+let scanned = new Set(["FREE"]);
+let stream = null;
+
+// ✅QR読取→1回成功したら即盤面へ戻る
+const scanBtn = document.getElementById("scanBtn");
+scanBtn.onclick = async () => {
+    camView.style.display="flex";
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode:"environment" }
+        });
+        video.srcObject = stream;
+        requestAnimationFrame(tick);
+    } catch(e){ alert("カメラアクセス不可"); }
+};
+
+// ✅カメラ閉じる
+document.getElementById("closeCam").onclick = () => {
+    closeCamera();
+};
+
+// ✅映像フレーム解析
+function tick(){
+    if(camView.style.display!=="flex") return;
+
+    const cvs = document.createElement("canvas");
+    cvs.width = video.videoWidth;
+    cvs.height = video.videoHeight;
+    const ctx = cvs.getContext("2d");
+    ctx.drawImage(video,0,0,cvs.width,cvs.height);
+    const img = ctx.getImageData(0,0,cvs.width,cvs.height);
+    const code = jsQR(img.data, img.width, img.height);
+
+    if(code){
+        const data = code.data.trim();
+        if(labels.includes(data) && !scanned.has(data)){
+            scanned.add(data);
+            markCell(data);
+            closeCamera();
+            return;
+        }
     }
-    boardEl.appendChild(div);
-  }
+    requestAnimationFrame(tick);
 }
-buildBoard();
 
-
-// bingo check lines
-const LINES = [];
-// rows
-for (let r=0;r<ROWS;r++){
-  const idx = [];
-  for (let c=0;c<COLS;c++) idx.push(r*COLS + c);
-  LINES.push(idx);
-}
-// cols
-for (let c=0;c<COLS;c++){
-  const idx = [];
-  for (let r=0;r<ROWS;r++) idx.push(r*COLS + c);
-  LINES.push(idx);
-}
-// diagonals
-LINES.push([0,6,12,18,24]);
-LINES.push([4,8,12,16,20]);
-
-function checkBingoAndShow(){
-  const marked = cells.map(s => s.marked);
-  let newLines = 0;
-  LINES.forEach((line, idx)=>{
-    const key = line.join(',');
-    if (!usedLineKeys.has(key) && line.every(i=> marked[i])) {
-      usedLineKeys.add(key);
-      newLines++;
+// ✅マス光らせ＋ビンゴ判定
+function markCell(id){
+    const cell = document.getElementById(id);
+    if(cell){
+        cell.classList.add("glow");
+        showMessage(id);
+        checkBingo();
     }
-  });
-
-  if (usedLineKeys.size === LINES.length){
-    showStatus('🎯 COMPLETE! 🎯', true);
-    return;
-  }
-
-  if (newLines > 0){
-    const txt = newLines === 1 ? '🎉 BINGO! 🎉' : `✨ ${newLines}ライン BINGO! ✨`;
-    showStatus(txt, false);
-  }
 }
 
-// mark cell by code like "B7"
-function markByCode(code){
-  if (!code) return;
-  code = String(code).trim();
-  if (!/^B\d{1,2}$/.test(code)) return;
-  const num = parseInt(code.slice(1),10);
-  if (isNaN(num) || num < 1 || num > 25) return;
-  const idx = num - 1;
-  if (idx === FREE_INDEX) return; // FREE has no QR and is already marked
-  const target = cells[idx];
-  if (!target) return;
-  if (target.marked) return;
-  target.marked = true;
-  target.el.classList.add('marked');
-  checkBingoAndShow();
+// ✅演出メッセージ
+function showMessage(id){
+    msg.textContent = id==="FREE" ? "FREE!" : id;
+    msg.style.display="block";
+    setTimeout(()=>msg.style.display="none",1200);
 }
 
-// camera utilities
-async function startCameraAndScan(){
-  // safety: must be called by user gesture (scanBtn click)
-  cameraModal.style.display = 'flex';
-  cameraModal.setAttribute('aria-hidden','false');
+// ✅カメラ終了→盤面
+function closeCamera(){
+    camView.style.display="none";
+    if(stream){
+        stream.getTracks().forEach(t=>t.stop());
+        stream=null;
+    }
+}
 
-  // create reader if not exist
-  if (!window.ZXingBrowser) {
-    // if ZXing not loaded, fallback: show error
-    showStatus('QRライブラリが読み込まれていません', false);
-    return;
-  }
+// ✅ビンゴ判定
+function checkBingo(){
+    const win = [
+        [1,2,3,4,5],[6,7,8,9,10],[11,12,13,14,15],[16,17,18,19,20],[21,22,23,24,25],
+        [1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],[5,10,15,20,25],
+        [1,7,13,19,25],[5,9,13,17,21]
+    ];
+    let bingoCount = 0;
 
-  codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-
-  try {
-    // list video devices
-    const devices = await ZXingBrowser.BrowserMultiFormatReader.listVideoInputDevices();
-    // prefer back camera
-    let chosen = devices.find(d => /back|rear|環境|Back/i.test(d.label)) || devices[0];
-    // decode from device directly to video element; callback when found
-    await codeReader.decodeFromVideoDevice(chosen.deviceId, video, (result, err) => {
-      if (result) {
-        // got code
-        const text = result.text;
-        try {
-          // stop and close camera
-          stopCamera();
-        } catch(e){}
-        // small delay to let UI stabilize
-        setTimeout(()=> {
-          markByCode(text);
-        }, 120);
-      }
-      // err are ignored (noisy)
+    win.forEach(line=>{
+        if(line.every(i => {
+            let id = (i===13)?"FREE":("B"+i);
+            return scanned.has(id);
+        })) bingoCount++;
     });
-  } catch (e) {
-    console.error('camera start error', e);
-    showStatus('カメラが起動できません', false);
-    closeCameraModal();
-  }
+
+    if(bingoCount>0){
+        let text = bingoCount===1?"BINGO!":
+                  bingoCount===2?"DOUBLE BINGO!":
+                  "🎉TRIPLE BINGO!🎉";
+        msg.textContent = text;
+        msg.style.display="block";
+        setTimeout(()=>msg.style.display="none",2000);
+    }
+
+    if(scanned.size===25){
+        msg.textContent="🎊COMPLETE!!🎊";
+        msg.style.display="block";
+    }
 }
-
-function stopCamera(){
-  try {
-    if (codeReader) { codeReader.reset(); }
-  } catch(e){}
-  // stop any MediaStream tracks
-  if (video && video.srcObject) {
-    const s = video.srcObject;
-    if (s.getTracks) s.getTracks().forEach(t => t.stop());
-    video.srcObject = null;
-  }
-  closeCameraModal();
-}
-
-function closeCameraModal(){
-  cameraModal.style.display = 'none';
-  cameraModal.setAttribute('aria-hidden','true');
-}
-
-// events
-scanBtn.addEventListener('click', async (e) => {
-  // user gesture -> start camera
-  await startCameraAndScan();
-});
-closeCamera.addEventListener('click', () => {
-  stopCamera();
-});
-
-// accessibility: hide modal on escape
-document.addEventListener('keydown', (ev)=> {
-  if (ev.key === 'Escape') stopCamera();
-});
-
-// initial: mark FREE cell visually already done in buildBoard
-// ensure board layout sizing for small screens: adjust grid cell sizes based on viewport
-function adjustGrid(){
-  // handled by CSS using min() and vw; no runtime change needed
-}
-window.addEventListener('resize', adjustGrid);
-
-})(); // IIFE end
 </script>
+
 </body>
 </html>
