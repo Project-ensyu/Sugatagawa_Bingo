@@ -1,207 +1,250 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>姿川ビンゴ</title>
-  <style>
-    body {
-      font-family: 'Hiragino Sans', sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      padding-top: 20px;
-      background: #f9f9f9;
-      margin: 0;
-      height: 100vh;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>姿川ビンゴ</title>
+<style>
+  body {
+    font-family: 'Hiragino Sans', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100vh;
+    margin: 0;
+    background: #f9f9f9;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 
-    h1 {
-      margin-bottom: 15px;
-      font-size: 22px;
-      font-weight: bold;
-      color: #333;
-    }
+  h1 {
+    font-size: 24px;
+    color: #333;
+    margin: 10px 0;
+  }
 
-    .bingo {
-      display: grid;
-      grid-template-columns: repeat(5, 60px);
-      grid-gap: 8px;
-      margin-bottom: 20px;
-    }
+  .bingo {
+    display: grid;
+    grid-template-columns: repeat(5, min(18vw, 60px));
+    grid-gap: min(2vw, 8px);
+  }
 
-    .cell {
-      width: 60px;
-      height: 60px;
-      background: white;
-      border: 2px solid #ccc;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      cursor: default;
-      transition: all 0.4s ease;
-    }
+  .cell {
+    width: min(18vw, 60px);
+    height: min(18vw, 60px);
+    background: white;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: min(4vw, 16px);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
 
-    .cell.active {
-      background: #ffc400;
-      color: #fff;
-      border-color: gold;
-      box-shadow: 0 0 12px rgba(255,190,0,0.9);
-      animation: glow 0.6s;
-    }
+  .cell.active {
+    background: #fdd835;
+    color: white;
+    border-color: #fbc02d;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    transform: scale(1.06);
+  }
 
-    @keyframes glow {
-      0% { transform: scale(1.3); }
-      100% { transform: scale(1); }
-    }
+  button {
+    margin: 14px;
+    padding: 12px 22px;
+    font-size: 18px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    background: #4caf50;
+    color: white;
+  }
 
-    #scanBtn {
-      width: 90%;
-      max-width: 300px;
-      padding: 13px;
-      font-size: 18px;
-      border: none;
-      background: #007aff;
-      color: white;
-      border-radius: 10px;
-      cursor: pointer;
-    }
+  #cameraView {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: black;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
 
-    #scanner {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: black;
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-    }
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 
-    #message {
-      margin-top: 15px;
-      font-size: 22px;
-      font-weight: bold;
-      color: #e91e63;
-      display: none;
-    }
-  </style>
+  .message {
+    position: fixed;
+    bottom: 20px;
+    font-size: 26px;
+    font-weight: bold;
+    color: #e91e63;
+    display: none;
+    z-index: 200;
+    text-shadow: 0 0 6px white;
+  }
+</style>
 </head>
+
 <body>
 
-  <h1>姿川ビンゴ</h1>
-  <div class="bingo" id="bingo"></div>
+<h1>姿川ビンゴ</h1>
 
-  <button id="scanBtn">📷 QRコードを読み取る</button>
-  <div id="scanner"></div>
+<button id="scanBtn">QRコードを読み取る</button>
 
-  <div class="message" id="message"></div>
+<div class="bingo" id="bingo"></div>
+<div class="message" id="message"></div>
 
-  <script src="https://unpkg.com/html5-qrcode"></script>
+<div id="cameraView">
+  <video id="camera" autoplay playsinline></video>
+</div>
 
-  <script>
-    const bingo = document.getElementById('bingo');
-    const scanner = document.getElementById('scanner');
-    const message = document.getElementById('message');
-    const size = 5;
-    const cells = [];
-    let usedLines = new Set();
+<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
 
-    // ビンゴライン定義（FREE含む）
-    const lines = [
-      [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
-      [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
-      [0,6,12,18,24],[4,8,12,16,20]
-    ];
+<script>
+const bingo = document.getElementById('bingo');
+const message = document.getElementById('message');
+const cameraView = document.getElementById('cameraView');
+const video = document.getElementById('camera');
+const scanBtn = document.getElementById('scanBtn');
 
-    // 盤面生成（B1-B25）
-    for (let i = 0; i < 25; i++) {
-      const cell = document.createElement('div');
-      cell.classList.add('cell');
-      cell.textContent = "B" + (i + 1);
-      bingo.appendChild(cell);
-      cells.push(cell);
-    }
+const size = 5;
+let cells = [];
+let bingoLines = new Set();
+let stream = null;
 
-    // FREE中央(B13)は最初から光る
-    cells[12].classList.add("active");
+// マス生成
+for (let i = 0; i < size * size; i++) {
+  const div = document.createElement('div');
+  div.classList.add('cell');
 
-    // QR→マス点灯
-    function activateCellByCode(text) {
-      if (!text.startsWith("B")) return;
+  const col = Math.floor(i / size);
+  const row = i % size;
+  div.textContent = `B${i + 1}`;
 
-      const num = parseInt(text.substring(1));
-      if (num >= 1 && num <= 25) {
-        const index = num - 1;
-        if (!cells[index].classList.contains("active")) {
-          cells[index].classList.add("active");
-        }
-        checkBingo();
-      }
-    }
+  // FREEマス（中央）
+  if (i === 12) {
+    div.textContent = "FREE";
+    div.classList.add("active");
+  }
 
-    function checkBingo() {
-      const grid = cells.map(c => c.classList.contains("active"));
-      let newlyCompleted = 0;
+  bingo.appendChild(div);
+  cells.push(div);
+}
 
-      lines.forEach((line, idx) => {
-        if (!usedLines.has(idx) && line.every(i => grid[i])) {
-          usedLines.add(idx);
-          newlyCompleted++;
-        }
-      });
-
-      if (usedLines.size === lines.length) {
-        showMessage("🎊 COMPLETE! 🎊", true);
-        return;
-      }
-
-      if (newlyCompleted > 0) {
-        const msg = newlyCompleted === 1 ?
-          "🎉 BINGO! 🎉" :
-          `✨ ${newlyCompleted}ライン BINGO!! ✨`;
-        showMessage(msg, false);
-      }
-    }
-
-    function showMessage(text, permanent) {
-      message.textContent = text;
-      message.style.display = "block";
-      if (!permanent) {
-        setTimeout(() => {
-          message.style.display = "none";
-        }, 2000);
-      }
-    }
-
-    // スキャン
-    const scanBtn = document.getElementById("scanBtn");
-    let html5QrcodeScanner;
-
-    scanBtn.addEventListener("click", () => {
-      scanner.style.display = "flex";
-      html5QrcodeScanner = new Html5Qrcode("scanner");
-      html5QrcodeScanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        (decodedText) => {
-          html5QrcodeScanner.stop();
-          scanner.style.display = "none";
-          activateCellByCode(decodedText);
-        }
-      ).catch(err => {
-        console.error(err);
-        scanner.style.display = "none";
-      });
+// カメラ開始
+scanBtn.addEventListener('click', async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
     });
-  </script>
+    video.srcObject = stream;
+    cameraView.style.display = "flex";
+    scanLoop();
+  } catch (e) {
+    alert("カメラのアクセスが拒否されています");
+  }
+});
+
+// ループ読み取り
+function scanLoop() {
+  if (cameraView.style.display === "none") return;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+  if (code && code.data.startsWith("B")) {
+    const num = parseInt(code.data.substring(1));
+    activateCell(num - 1);
+    closeCamera();
+    return;
+  }
+
+  requestAnimationFrame(scanLoop);
+}
+
+function closeCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+  }
+  cameraView.style.display = "none";
+}
+
+// マス光らせる
+function activateCell(i) {
+  if (i < 0 || i >= size * size) return;
+  if (i === 12) return; // FREEは常に点灯状態
+  if (cells[i].classList.contains("active")) return;
+
+  cells[i].classList.add("active");
+  checkBingo();
+}
+
+// 判定
+function checkBingo() {
+  const grid = cells.map(c => c.classList.contains("active"));
+  let newLines = 0;
+  let totalCells = grid.filter(Boolean).length;
+
+  // 横
+  for (let r = 0; r < size; r++) {
+    let line = [];
+    for (let c = 0; c < size; c++) line.push(r * size + c);
+    checkLine(line);
+  }
+
+  // 縦
+  for (let c = 0; c < size; c++) {
+    let line = [];
+    for (let r = 0; r < size; r++) line.push(r * size + c);
+    checkLine(line);
+  }
+
+  // 斜め
+  checkLine([0, 6, 12, 18, 24]);
+  checkLine([4, 8, 12, 16, 20]);
+
+  function checkLine(line) {
+    if (line.every(i => grid[i])) {
+      let key = line.join("-");
+      if (!bingoLines.has(key)) {
+        bingoLines.add(key);
+        showMessage(`${bingoLines.size}ライン BINGO! 🎉`, 2000);
+      }
+    }
+  }
+
+  if (grid.every(Boolean)) {
+    showMessage("🎯 COMPLETE! 🎯", 999999);
+  }
+}
+
+// メッセージ表示
+function showMessage(text, ms) {
+  message.textContent = text;
+  message.style.display = "block";
+  if (ms < 900000) {
+    setTimeout(() => {
+      message.style.display = "none";
+    }, ms);
+  }
+}
+</script>
 
 </body>
 </html>
-
-
