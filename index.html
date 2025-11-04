@@ -1,250 +1,389 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>姿川ビンゴ</title>
-<style>
-  body {
-    font-family: 'Hiragino Sans', sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    height: 100vh;
-    margin: 0;
-    background: #f9f9f9;
-    overflow: hidden;
-    -webkit-user-select: none;
-    user-select: none;
-  }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>姿川ビンゴ</title>
 
-  h1 {
-    font-size: 24px;
-    color: #333;
-    margin: 10px 0;
-  }
+  <!-- ZXing (ブラウザ向けQR読み取りライブラリ) -->
+  <script src="https://unpkg.com/@zxing/browser@0.1.1/umd/index.min.js"></script>
 
-  .bingo {
-    display: grid;
-    grid-template-columns: repeat(5, min(18vw, 60px));
-    grid-gap: min(2vw, 8px);
-  }
+  <style>
+    :root{
+      --bg: #f9f9f9;
+      --card: #ffffff;
+      --accent: #fdd835;
+      --accent-border: #fbc02d;
+      --btn: #007aff;
+      --danger: #e53935;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      padding:0;
+      background:var(--bg);
+      font-family: "Hiragino Kaku Gothic ProN","ヒラギノ角ゴ ProN W3", "Noto Sans JP",sans-serif;
+      -webkit-font-smoothing:antialiased;
+      -webkit-user-select:none;
+      user-select:none;
+    }
 
-  .cell {
-    width: min(18vw, 60px);
-    height: min(18vw, 60px);
-    background: white;
-    border: 2px solid #ccc;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: min(4vw, 16px);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
+    header{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:12px 8px 6px 8px;
+    }
 
-  .cell.active {
-    background: #fdd835;
-    color: white;
-    border-color: #fbc02d;
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
-    transform: scale(1.06);
-  }
+    h1{
+      font-size:20px;
+      margin:0;
+      color:#222;
+    }
 
-  button {
-    margin: 14px;
-    padding: 12px 22px;
-    font-size: 18px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    background: #4caf50;
-    color: white;
-  }
+    main{ display:flex; flex-direction:column; align-items:center; gap:8px; padding-bottom:80px; }
 
-  #cameraView {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    background: black;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-  }
+    /* board */
+    #board{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(48px, 1fr));
+      gap:8px;
+      width: min(92vw, 420px);
+      margin-top:6px;
+      box-sizing:border-box;
+    }
 
-  video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+    .cell{
+      background:var(--card);
+      border:2px solid #ccc;
+      border-radius:10px;
+      height: min(18vw, 72px);
+      min-height:48px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
+      color:#111;
+      font-size: clamp(14px, 3.3vw, 18px);
+      transition: transform .18s ease, box-shadow .18s ease;
+      box-sizing:border-box;
+      touch-action: manipulation;
+    }
 
-  .message {
-    position: fixed;
-    bottom: 20px;
-    font-size: 26px;
-    font-weight: bold;
-    color: #e91e63;
-    display: none;
-    z-index: 200;
-    text-shadow: 0 0 6px white;
-  }
-</style>
+    .cell.marked{
+      background: var(--accent);
+      border-color: var(--accent-border);
+      color:#111;
+      box-shadow: 0 0 16px rgba(255,200,0,0.8);
+      transform: scale(1.05);
+      animation: shine 0.6s ease;
+    }
+
+    @keyframes shine{
+      0%{ transform: scale(1.18); filter:brightness(1.6); opacity:0.95;}
+      100%{ transform: scale(1); filter:brightness(1); opacity:1;}
+    }
+
+    /* message (BINGO etc) */
+    #status{
+      position: fixed;
+      top: 38%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+      background: rgba(255,255,255,0.95);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 900;
+      font-size: 28px;
+      color:#d81b60;
+      display:none;
+      z-index: 1200;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      text-align:center;
+    }
+
+    /* scan button fixed bottom */
+    #scanBtn{
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 12px;
+      width: calc(100% - 28px);
+      max-width: 420px;
+      height: 56px;
+      border-radius: 12px;
+      border: none;
+      background: var(--btn);
+      color: #fff;
+      font-size: 18px;
+      font-weight:700;
+      z-index: 1100;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+      touch-action: manipulation;
+    }
+
+    /* camera full screen modal */
+    #cameraModal{
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      flex-direction: column;
+    }
+
+    #cameraModal video{
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* mirror off; will flip in code if necessary */
+    }
+
+    #closeCamera{
+      position: absolute;
+      top: 18px;
+      right: 14px;
+      z-index:2100;
+      background: rgba(0,0,0,0.45);
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 18px;
+    }
+
+    /* responsive spacing */
+    .spacer{ height:14px; }
+
+    @media (min-width:700px){
+      #scanBtn{ bottom: 18px; height:62px; }
+      .cell{ min-height:72px; }
+    }
+  </style>
 </head>
-
 <body>
+  <header><h1>姿川ビンゴ</h1></header>
 
-<h1>姿川ビンゴ</h1>
+  <main>
+    <div id="board" aria-hidden="false"></div>
+    <div class="spacer"></div>
+    <div id="status" role="status" aria-live="polite"></div>
+  </main>
 
-<button id="scanBtn">QRコードを読み取る</button>
+  <button id="scanBtn" aria-label="QRコードを読み取る">📷 QRコードを読み取る</button>
 
-<div class="bingo" id="bingo"></div>
-<div class="message" id="message"></div>
-
-<div id="cameraView">
-  <video id="camera" autoplay playsinline></video>
-</div>
-
-<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+  <!-- カメラ全画面 -->
+  <div id="cameraModal" aria-hidden="true">
+    <video id="video" playsinline autoplay></video>
+    <button id="closeCamera" aria-label="カメラを閉じる">閉じる</button>
+  </div>
 
 <script>
-const bingo = document.getElementById('bingo');
-const message = document.getElementById('message');
-const cameraView = document.getElementById('cameraView');
-const video = document.getElementById('camera');
+/*
+  完全一体型コード
+  - QRデータ: B1 ... B25（中央B13はFREEでQRなし）
+  - 動作: ボタン押す → 全画面カメラ → QR検出 → カメラ停止→盤面表示→マス点灯
+  - ライブラリ: @zxing/browser (CDN読み込み)
+*/
+
+(async ()=>{
+
+// DOM
+const boardEl = document.getElementById('board');
 const scanBtn = document.getElementById('scanBtn');
+const cameraModal = document.getElementById('cameraModal');
+const video = document.getElementById('video');
+const closeCamera = document.getElementById('closeCamera');
+const statusEl = document.getElementById('status');
 
-const size = 5;
-let cells = [];
-let bingoLines = new Set();
-let stream = null;
+const ROWS = 5;
+const COLS = 5;
+const TOTAL = ROWS * COLS;
+const FREE_INDEX = 12; // 0-based center
+let cells = []; // {el, value, marked}
+let usedLineKeys = new Set();
 
-// マス生成
-for (let i = 0; i < size * size; i++) {
-  const div = document.createElement('div');
-  div.classList.add('cell');
+let codeReader = null;
+let currentStream = null;
 
-  const col = Math.floor(i / size);
-  const row = i % size;
-  div.textContent = `B${i + 1}`;
-
-  // FREEマス（中央）
-  if (i === 12) {
-    div.textContent = "FREE";
-    div.classList.add("active");
+// helper show status
+function showStatus(text, persistent=false){
+  statusEl.textContent = text;
+  statusEl.style.display = 'block';
+  if (!persistent) {
+    setTimeout(()=> {
+      statusEl.style.display = 'none';
+      statusEl.textContent = '';
+    }, 2000);
   }
-
-  bingo.appendChild(div);
-  cells.push(div);
 }
 
-// カメラ開始
-scanBtn.addEventListener('click', async () => {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" }
-    });
-    video.srcObject = stream;
-    cameraView.style.display = "flex";
-    scanLoop();
-  } catch (e) {
-    alert("カメラのアクセスが拒否されています");
+// build board
+function buildBoard(){
+  boardEl.innerHTML = '';
+  cells = [];
+  let n = 1;
+  for (let i=0;i<TOTAL;i++){
+    const div = document.createElement('div');
+    div.className = 'cell';
+    if (i === FREE_INDEX){
+      div.textContent = 'FREE';
+      div.classList.add('marked');
+      cells.push({el:div, value:'FREE', marked:true});
+    } else {
+      const code = `B${n}`;
+      div.textContent = code;
+      cells.push({el:div, value:code, marked:false});
+      n++;
+    }
+    boardEl.appendChild(div);
   }
-});
+}
+buildBoard();
 
-// ループ読み取り
-function scanLoop() {
-  if (cameraView.style.display === "none") return;
 
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0);
+// bingo check lines
+const LINES = [];
+// rows
+for (let r=0;r<ROWS;r++){
+  const idx = [];
+  for (let c=0;c<COLS;c++) idx.push(r*COLS + c);
+  LINES.push(idx);
+}
+// cols
+for (let c=0;c<COLS;c++){
+  const idx = [];
+  for (let r=0;r<ROWS;r++) idx.push(r*COLS + c);
+  LINES.push(idx);
+}
+// diagonals
+LINES.push([0,6,12,18,24]);
+LINES.push([4,8,12,16,20]);
 
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const code = jsQR(imageData.data, canvas.width, canvas.height);
+function checkBingoAndShow(){
+  const marked = cells.map(s => s.marked);
+  let newLines = 0;
+  LINES.forEach((line, idx)=>{
+    const key = line.join(',');
+    if (!usedLineKeys.has(key) && line.every(i=> marked[i])) {
+      usedLineKeys.add(key);
+      newLines++;
+    }
+  });
 
-  if (code && code.data.startsWith("B")) {
-    const num = parseInt(code.data.substring(1));
-    activateCell(num - 1);
-    closeCamera();
+  if (usedLineKeys.size === LINES.length){
+    showStatus('🎯 COMPLETE! 🎯', true);
     return;
   }
 
-  requestAnimationFrame(scanLoop);
+  if (newLines > 0){
+    const txt = newLines === 1 ? '🎉 BINGO! 🎉' : `✨ ${newLines}ライン BINGO! ✨`;
+    showStatus(txt, false);
+  }
 }
 
-function closeCamera() {
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-  }
-  cameraView.style.display = "none";
+// mark cell by code like "B7"
+function markByCode(code){
+  if (!code) return;
+  code = String(code).trim();
+  if (!/^B\d{1,2}$/.test(code)) return;
+  const num = parseInt(code.slice(1),10);
+  if (isNaN(num) || num < 1 || num > 25) return;
+  const idx = num - 1;
+  if (idx === FREE_INDEX) return; // FREE has no QR and is already marked
+  const target = cells[idx];
+  if (!target) return;
+  if (target.marked) return;
+  target.marked = true;
+  target.el.classList.add('marked');
+  checkBingoAndShow();
 }
 
-// マス光らせる
-function activateCell(i) {
-  if (i < 0 || i >= size * size) return;
-  if (i === 12) return; // FREEは常に点灯状態
-  if (cells[i].classList.contains("active")) return;
+// camera utilities
+async function startCameraAndScan(){
+  // safety: must be called by user gesture (scanBtn click)
+  cameraModal.style.display = 'flex';
+  cameraModal.setAttribute('aria-hidden','false');
 
-  cells[i].classList.add("active");
-  checkBingo();
-}
-
-// 判定
-function checkBingo() {
-  const grid = cells.map(c => c.classList.contains("active"));
-  let newLines = 0;
-  let totalCells = grid.filter(Boolean).length;
-
-  // 横
-  for (let r = 0; r < size; r++) {
-    let line = [];
-    for (let c = 0; c < size; c++) line.push(r * size + c);
-    checkLine(line);
+  // create reader if not exist
+  if (!window.ZXingBrowser) {
+    // if ZXing not loaded, fallback: show error
+    showStatus('QRライブラリが読み込まれていません', false);
+    return;
   }
 
-  // 縦
-  for (let c = 0; c < size; c++) {
-    let line = [];
-    for (let r = 0; r < size; r++) line.push(r * size + c);
-    checkLine(line);
-  }
+  codeReader = new ZXingBrowser.BrowserMultiFormatReader();
 
-  // 斜め
-  checkLine([0, 6, 12, 18, 24]);
-  checkLine([4, 8, 12, 16, 20]);
-
-  function checkLine(line) {
-    if (line.every(i => grid[i])) {
-      let key = line.join("-");
-      if (!bingoLines.has(key)) {
-        bingoLines.add(key);
-        showMessage(`${bingoLines.size}ライン BINGO! 🎉`, 2000);
+  try {
+    // list video devices
+    const devices = await ZXingBrowser.BrowserMultiFormatReader.listVideoInputDevices();
+    // prefer back camera
+    let chosen = devices.find(d => /back|rear|環境|Back/i.test(d.label)) || devices[0];
+    // decode from device directly to video element; callback when found
+    await codeReader.decodeFromVideoDevice(chosen.deviceId, video, (result, err) => {
+      if (result) {
+        // got code
+        const text = result.text;
+        try {
+          // stop and close camera
+          stopCamera();
+        } catch(e){}
+        // small delay to let UI stabilize
+        setTimeout(()=> {
+          markByCode(text);
+        }, 120);
       }
-    }
-  }
-
-  if (grid.every(Boolean)) {
-    showMessage("🎯 COMPLETE! 🎯", 999999);
-  }
-}
-
-// メッセージ表示
-function showMessage(text, ms) {
-  message.textContent = text;
-  message.style.display = "block";
-  if (ms < 900000) {
-    setTimeout(() => {
-      message.style.display = "none";
-    }, ms);
+      // err are ignored (noisy)
+    });
+  } catch (e) {
+    console.error('camera start error', e);
+    showStatus('カメラが起動できません', false);
+    closeCameraModal();
   }
 }
+
+function stopCamera(){
+  try {
+    if (codeReader) { codeReader.reset(); }
+  } catch(e){}
+  // stop any MediaStream tracks
+  if (video && video.srcObject) {
+    const s = video.srcObject;
+    if (s.getTracks) s.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+  closeCameraModal();
+}
+
+function closeCameraModal(){
+  cameraModal.style.display = 'none';
+  cameraModal.setAttribute('aria-hidden','true');
+}
+
+// events
+scanBtn.addEventListener('click', async (e) => {
+  // user gesture -> start camera
+  await startCameraAndScan();
+});
+closeCamera.addEventListener('click', () => {
+  stopCamera();
+});
+
+// accessibility: hide modal on escape
+document.addEventListener('keydown', (ev)=> {
+  if (ev.key === 'Escape') stopCamera();
+});
+
+// initial: mark FREE cell visually already done in buildBoard
+// ensure board layout sizing for small screens: adjust grid cell sizes based on viewport
+function adjustGrid(){
+  // handled by CSS using min() and vw; no runtime change needed
+}
+window.addEventListener('resize', adjustGrid);
+
+})(); // IIFE end
 </script>
-
 </body>
 </html>
