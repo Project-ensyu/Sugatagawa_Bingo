@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>姿川ビンゴ</title>
   <style>
     body {
@@ -11,214 +11,195 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      height: 100vh;
+      padding-top: 20px;
+      background: #f9f9f9;
       margin: 0;
-      background: #f7f7f7;
-      overflow: hidden;
+      height: 100vh;
     }
 
     h1 {
-      margin: 10px;
+      margin-bottom: 15px;
       font-size: 22px;
+      font-weight: bold;
       color: #333;
     }
 
     .bingo {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      width: 92vw;
-      gap: 6px;
-      margin-top: 10px;
-      max-height: 66vh;
+      grid-template-columns: repeat(5, 60px);
+      grid-gap: 8px;
+      margin-bottom: 20px;
     }
 
     .cell {
-      aspect-ratio: 1 / 1;
+      width: 60px;
+      height: 60px;
       background: white;
       border: 2px solid #ccc;
-      border-radius: 10px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 14px;
       cursor: default;
-      transition: all 0.25s ease;
+      transition: all 0.4s ease;
     }
 
     .cell.active {
-      background: #ffd600;
-      border-color: #fbc02d;
-      color: #000;
-      box-shadow: 0 0 14px rgba(255, 215, 0, 0.8);
-      transform: scale(1.07);
+      background: #ffc400;
+      color: #fff;
+      border-color: gold;
+      box-shadow: 0 0 12px rgba(255,190,0,0.9);
+      animation: glow 0.6s;
     }
 
-    .message {
-      position: absolute;
-      top: 45%;
-      font-size: 40px;
-      font-weight: 900;
-      text-shadow: 0 0 12px #fff;
-      padding: 10px 20px;
-      border-radius: 10px;
-      display: none;
-      animation: pop 0.4s ease-out;
+    @keyframes glow {
+      0% { transform: scale(1.3); }
+      100% { transform: scale(1); }
     }
 
-    #btnScan {
-      position: fixed;
-      bottom: 0;
-      width: 100vw;
-      height: 55px;
-      font-size: 20px;
+    #scanBtn {
+      width: 90%;
+      max-width: 300px;
+      padding: 13px;
+      font-size: 18px;
       border: none;
       background: #007aff;
-      color: #fff;
+      color: white;
+      border-radius: 10px;
+      cursor: pointer;
     }
 
-    #cameraView {
-      display: none;
+    #scanner {
       position: fixed;
-      top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       background: black;
-      z-index: 50;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
     }
 
-    @keyframes pop {
-      0% { transform: scale(0.6); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
+    #message {
+      margin-top: 15px;
+      font-size: 22px;
+      font-weight: bold;
+      color: #e91e63;
+      display: none;
     }
   </style>
 </head>
-
 <body>
 
   <h1>姿川ビンゴ</h1>
   <div class="bingo" id="bingo"></div>
+
+  <button id="scanBtn">📷 QRコードを読み取る</button>
+  <div id="scanner"></div>
+
   <div class="message" id="message"></div>
 
-  <button id="btnScan">📷 QRコードを読み取る</button>
-
-  <div id="cameraView">
-    <video id="camera" autoplay playsinline></video>
-  </div>
-
-  <!-- QR解析ライブラリ -->
-  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <script>
     const bingo = document.getElementById('bingo');
+    const scanner = document.getElementById('scanner');
     const message = document.getElementById('message');
-    const btnScan = document.getElementById('btnScan');
-    const camView = document.getElementById('cameraView');
-    const camera = document.getElementById('camera');
-
     const size = 5;
     const cells = [];
-    let foundLines = new Set();
-    let scanning = false;
-    let stream;
+    let usedLines = new Set();
 
-    // グリッド生成
-    for (let i = 0; i < size * size; i++) {
+    // ビンゴライン定義（FREE含む）
+    const lines = [
+      [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
+      [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
+      [0,6,12,18,24],[4,8,12,16,20]
+    ];
+
+    // 盤面生成（B1-B25）
+    for (let i = 0; i < 25; i++) {
       const cell = document.createElement('div');
       cell.classList.add('cell');
-      cell.textContent = `${"BINGO"[Math.floor(i / 5)]}${i % 5 + 1}`; // QR表示通りにする
+      cell.textContent = "B" + (i + 1);
       bingo.appendChild(cell);
       cells.push(cell);
     }
 
-    function showMsg(text, persistent = false) {
-      message.textContent = text;
-      message.style.display = "block";
-      if (!persistent) {
-        setTimeout(() => message.style.display = "none", 2000);
+    // FREE中央(B13)は最初から光る
+    cells[12].classList.add("active");
+
+    // QR→マス点灯
+    function activateCellByCode(text) {
+      if (!text.startsWith("B")) return;
+
+      const num = parseInt(text.substring(1));
+      if (num >= 1 && num <= 25) {
+        const index = num - 1;
+        if (!cells[index].classList.contains("active")) {
+          cells[index].classList.add("active");
+        }
+        checkBingo();
       }
-    }
-
-    function activateCell(qrText) {
-      const index = cells.findIndex(c => c.textContent === qrText);
-      if (index < 0) return;
-      if (cells[index].classList.contains("active")) return;
-
-      cells[index].classList.add("active");
-      checkBingo();
     }
 
     function checkBingo() {
       const grid = cells.map(c => c.classList.contains("active"));
-      let newLineCount = 0;
+      let newlyCompleted = 0;
 
-      const lines = [];
-
-      // 横
-      for (let r = 0; r < size; r++) lines.push([...Array(size).keys()].map(i => r * size + i));
-      // 縦
-      for (let c = 0; c < size; c++) lines.push([...Array(size).keys()].map(i => i * size + c));
-      // 斜め
-      lines.push([0, 6, 12, 18, 24]);
-      lines.push([4, 8, 12, 16, 20]);
-
-      lines.forEach((line, i) => {
-        if (line.every(i => grid[i]) && !foundLines.has(i)) {
-          foundLines.add(i);
-          newLineCount++;
+      lines.forEach((line, idx) => {
+        if (!usedLines.has(idx) && line.every(i => grid[i])) {
+          usedLines.add(idx);
+          newlyCompleted++;
         }
       });
 
-      if (newLineCount > 0) {
-        if (foundLines.size === 12) {
-          showMsg("🎯 COMPLETE!!! 🎉", true);
-        } else {
-          const msg = ["BINGO!", "DOUBLE!", "TRIPLE!", "QUADRUPLE!", "WOW!"][newLineCount - 1] || "BINGO!";
-          showMsg(`✨ ${msg} ✨`);
-        }
-      }
-    }
-
-    // カメラ起動
-    btnScan.addEventListener("click", async () => {
-      if (scanning) return;
-      scanning = true;
-
-      camView.style.display = "block";
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      camera.srcObject = stream;
-      scanLoop();
-    });
-
-    function stopCamera() {
-      scanning = false;
-      camView.style.display = "none";
-      stream.getTracks().forEach(t => t.stop());
-    }
-
-    async function scanLoop() {
-      if (!scanning) return;
-
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      canvas.width = camera.videoWidth;
-      canvas.height = camera.videoHeight;
-      ctx.drawImage(camera, 0, 0);
-      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(img.data, img.width, img.height);
-
-      if (code && code.data.match(/^[BINGO][1-5]$/)) {
-        stopCamera();
-        activateCell(code.data.trim());
+      if (usedLines.size === lines.length) {
+        showMessage("🎊 COMPLETE! 🎊", true);
         return;
       }
 
-      requestAnimationFrame(scanLoop);
+      if (newlyCompleted > 0) {
+        const msg = newlyCompleted === 1 ?
+          "🎉 BINGO! 🎉" :
+          `✨ ${newlyCompleted}ライン BINGO!! ✨`;
+        showMessage(msg, false);
+      }
     }
+
+    function showMessage(text, permanent) {
+      message.textContent = text;
+      message.style.display = "block";
+      if (!permanent) {
+        setTimeout(() => {
+          message.style.display = "none";
+        }, 2000);
+      }
+    }
+
+    // スキャン
+    const scanBtn = document.getElementById("scanBtn");
+    let html5QrcodeScanner;
+
+    scanBtn.addEventListener("click", () => {
+      scanner.style.display = "flex";
+      html5QrcodeScanner = new Html5Qrcode("scanner");
+      html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+          html5QrcodeScanner.stop();
+          scanner.style.display = "none";
+          activateCellByCode(decodedText);
+        }
+      ).catch(err => {
+        console.error(err);
+        scanner.style.display = "none";
+      });
+    });
   </script>
 
 </body>
 </html>
-
-
-
-
